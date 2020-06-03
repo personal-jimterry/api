@@ -1,3 +1,8 @@
+#!/usr/bin/env python
+# -*- coding: UTF-8 -*-
+# Copyright 2020 by Faive
+# CC BY SA
+
 import requests
 from requests.exceptions import HTTPError
 import hashlib

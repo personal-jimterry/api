@@ -1,3 +1,8 @@
+#!/usr/bin/env python
+# -*- coding: UTF-8 -*-
+# Copyright 2020 by Faive
+# CC BY SA
+
 import requests
 from api import PGAPI, Player
 from flask import Flask, redirect, request
