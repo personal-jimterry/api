@@ -77,7 +77,7 @@ class AtlasTeamsMetadata(PGAPI):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        self.API_URL = f'https://{PGAPI.API_SERVER}/api/v1/atlas/teams/metadata/macro?k_id=1&realm_name=Celestial_Haven'
+        self.API_URL = f'https://{PGAPI.API_SERVER}/api/v1/atlas/teams/metadata/macro'
         self.params = {'k_id':1, 'realm_name':'Celestial_Haven'}
         self.data = self.fetch() if self.autofetch==True else None
 
@@ -91,7 +91,6 @@ class AtlasTeam(PGAPI):
         if kwargs.get('team_name'):
             self.params['team_name'] = kwargs.get('team_name')
         self.data = self.fetch() if self.autofetch==True else None
-
 
 
 class AtlasContribution(PGAPI):
