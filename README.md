@@ -77,6 +77,8 @@ Atlas contribution for api_key owners team (monthly gold, shards, kills)
 
 Example Flask app implementing OAuth2 authentication against War Dragons API and uses received api_key for an example api.py call
 
+On API key creaton use http(s)://hostname/login/callback as auth URL or change the routes accordingly inside app.py
+
     pip3 install -r requirements.txt
     python3 app.py
 
