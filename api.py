@@ -4,6 +4,7 @@
 # CC BY SA
 
 import requests
+import requests_cache
 from requests.exceptions import HTTPError
 import hashlib
 import json
@@ -12,6 +13,10 @@ import os
 from datetime import datetime
 from urllib.parse import quote
 
+requests_cache.install_cache('pgapi_cache', backend='sqlite', expire_after=600)
+
+class PGApiError(Exception):
+    pass
 
 class PGAPI:
     CLIENT_ID = os.environ.get('PG_CLIENT_ID') or 'app-xxxxxxxxxxxxxxxx'
@@ -22,7 +27,6 @@ class PGAPI:
         self.autofetch = autofetch
         self.params = None
         self.body = None
-        print(PGAPI.CLIENT_ID)
         if 'api_key' in kwargs:
             self.api_key = kwargs.get('api_key')
         else:
@@ -37,16 +41,22 @@ class PGAPI:
     def fetch(self):
         resp = requests.get(self.API_URL, headers=self.genHeaders(), params=self.params)
         if resp.status_code == 200:
-            return resp.json()
+            return {"cached":False, **resp.json()}
         else:
-            raise HTTPError(f"Request to {self.API_URL} failed (HTTP {resp.status_code})")
+            if resp.json().get('error'):
+                if "Rate limit" in resp.json().get('error') and resp.from_cache:
+                    return {"cached":True, **resp.from_cache.json()}
+                else:
+                    raise PGApiError(resp.json().get('error'))
+            else:
+                raise HTTPError(f"Request to {self.API_URL} failed (HTTP {resp.status_code})\nBody: {resp.text}")
 
     def post(self):
         resp = requests.post(self.API_URL, headers=self.genHeaders(), data=self.body)
         if resp.status_code == 200:
             return resp.json()
         else:
-            raise HTTPError(f"Request to {self.API_URL} failed (HTTP {resp.status_code})")
+            raise HTTPError(f"Request to {self.API_URL} failed (HTTP {resp.status_code})\nBody: {resp.text}")
 
     def __str__(self):
         return json.dumps(self.data)
@@ -83,8 +93,7 @@ class CastleInfo(PGAPI):
 
                 self.cont_ids.append({**cont_id})
 
-        self.params = {'cont_ids': json.dumps(self.cont_ids)}
-        print(self.params)          
+        self.params = {'cont_ids': json.dumps(self.cont_ids)}        
         self.data = self.fetch() if self.autofetch==True else None
 
 
