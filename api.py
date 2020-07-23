@@ -8,18 +8,21 @@ from requests.exceptions import HTTPError
 import hashlib
 import json
 import re
+import os
 from datetime import datetime
 from urllib.parse import quote
 
 
 class PGAPI:
-    CLIENT_ID = 'app-xxxxxxxxxxxxxxxx'
-    CLIENT_SECRET = 'secret-xxxxxxxxxxxxxx'
+    CLIENT_ID = os.environ.get('PG_CLIENT_ID') or 'app-xxxxxxxxxxxxxxxx'
+    CLIENT_SECRET = os.environ.get('PG_CLIENT_SECRET') or 'secret-xxxxxxxxxxxxxx'
     API_SERVER = AUTH_SERVER = 'api-dot-pgdragonsong.appspot.com'
 
     def __init__(self, autofetch=True, **kwargs):
         self.autofetch = autofetch
         self.params = None
+        self.body = None
+        print(PGAPI.CLIENT_ID)
         if 'api_key' in kwargs:
             self.api_key = kwargs.get('api_key')
         else:
@@ -38,9 +41,18 @@ class PGAPI:
         else:
             raise HTTPError(f"Request to {self.API_URL} failed (HTTP {resp.status_code})")
 
+    def post(self):
+        resp = requests.post(self.API_URL, headers=self.genHeaders(), data=self.body)
+        if resp.status_code == 200:
+            return resp.json()
+        else:
+            raise HTTPError(f"Request to {self.API_URL} failed (HTTP {resp.status_code})")
+
     def __str__(self):
         return json.dumps(self.data)
 
+
+##### Personal API #####
 
 class Player(PGAPI):
     def __init__(self, **kwargs):
@@ -48,6 +60,8 @@ class Player(PGAPI):
         self.API_URL = f'https://{PGAPI.API_SERVER}/api/v1/player/public/my_profile'
         self.data = kwargs.get('data') or self.fetch() if self.autofetch==True else None
 
+
+##### Castle API #####
 
 class CastleInfo(PGAPI):
     def __init__(self, **kwargs):
@@ -64,14 +78,35 @@ class CastleInfo(PGAPI):
                 if match:
                     self.cont_ids.append({'cont_idx':match.group(2), 'k_id':1, 'region_id': match.group(1)})
                 else:
-                    raise ValueError(f"Error parsing castle: <str>'{self.cont_id}'")
+                    raise ValueError(f"Error parsing castle: <str>'{cont_id}'")
             elif type(cont_id) == type(dict()):
+
                 self.cont_ids.append({**cont_id})
 
         self.params = {'cont_ids': json.dumps(self.cont_ids)}
         print(self.params)          
         self.data = self.fetch() if self.autofetch==True else None
 
+
+class CastleMetadata(PGAPI):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.API_URL = f'https://{PGAPI.API_SERVER}/api/v1/atlas/castles/metadata/macro'
+        self.params = {'k_id':1, 'realm_name':'Celestial_Haven'}
+        self.data = self.fetch() if self.autofetch==True else None
+
+
+##### Teams API #####
+
+class AtlasContribution(PGAPI):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.API_URL = f'https://{PGAPI.API_SERVER}/api/v1/atlas/team/contribution'
+
+        self.data = self.fetch() if self.autofetch==True else None
+        print(self.data)
+        for player in self.data['entries']:
+            setattr(self, player['for_name'], player['stats'])
 
 class AtlasTeamsMetadata(PGAPI):
     def __init__(self, **kwargs):
@@ -93,12 +128,36 @@ class AtlasTeam(PGAPI):
         self.data = self.fetch() if self.autofetch==True else None
 
 
-class AtlasContribution(PGAPI):
+class AtlasBattles(PGAPI):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.API_URL = f'https://{PGAPI.API_SERVER}/api/v1/atlas/team/contribution'
 
+        self.API_URL = f'https://{PGAPI.API_SERVER}/api/v1/atlas/team/battles'
+        self.params = {}
+        if kwargs.get('cursor'):
+            self.params['cursor'] = kwargs.get('cursor')
         self.data = self.fetch() if self.autofetch==True else None
-        print(self.data)
-        for player in self.data['entries']:
-            setattr(self, player['for_name'], player['stats'])
+
+
+class AtlasMonthlyKills(PGAPI):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        self.API_URL = f'https://{PGAPI.API_SERVER}/api/v1/atlas/teams/monthly_kill_count'
+        self.body = {"teams": []}
+        if kwargs.get('teams') and type(kwargs.get('teams')) == list():
+            self.body = {"teams": [kwargs.get('teams')]}
+            self.params['cursor'] = kwargs.get('cursor')
+        else:
+            raise ValueError("Required argument teams missing or not of type <list>")
+            return
+        self.data = self.post() if self.autofetch==True else None
+
+
+class AtlasTroopCount(PGAPI):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        self.API_URL = f'https://{PGAPI.API_SERVER}/api/v1/atlas/team/troop_count'
+        self.params = {}
+        self.data = self.fetch() if self.autofetch==True else None
