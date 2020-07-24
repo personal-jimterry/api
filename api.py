@@ -4,16 +4,17 @@
 # CC BY SA
 
 import requests
-import requests_cache
+import caching
 from requests.exceptions import HTTPError
 import hashlib
 import json
 import re
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from urllib.parse import quote
 
-requests_cache.install_cache('pgapi_cache', backend='sqlite', expire_after=600)
+
+caching.install_cache('pgapi_cache', backend='sqlite', always_include_get_headers=['X-WarDragons-APIKey'])
 
 class PGApiError(Exception):
     pass
@@ -27,27 +28,26 @@ class PGAPI:
         self.autofetch = autofetch
         self.params = None
         self.body = None
+        self.rate_limit_seconds = 300
         if 'api_key' in kwargs:
             self.api_key = kwargs.get('api_key')
         else:
             raise ValueError("API key missing")
 
     def genHeaders(self):
-        now = datetime.now().timestamp()
-        msg = ':'.join([PGAPI.CLIENT_SECRET, self.api_key, str(int(now))]).encode('utf-8')
+        now = datetime.utcnow()
+        msg = ':'.join([PGAPI.CLIENT_SECRET, self.api_key, str(int(now.timestamp()))]).encode('utf-8')
         generated_signature = hashlib.sha256(msg).hexdigest()
-        return {'X-WarDragons-APIKey':self.api_key, 'X-WarDragons-Request-Timestamp': str(int(now)), 'X-WarDragons-Signature':str(generated_signature)}
+        return {'expires':str(int((now+timedelta(seconds=self.rate_limit_seconds)).timestamp())),'X-WarDragons-APIKey':self.api_key, 'X-WarDragons-Request-Timestamp': str(int(now.timestamp())), 'X-WarDragons-Signature':str(generated_signature)}
 
     def fetch(self):
         resp = requests.get(self.API_URL, headers=self.genHeaders(), params=self.params)
         if resp.status_code == 200:
-            return {"cached":False, **resp.json()}
+            return {"cached":resp.from_cache, **resp.json()}
         else:
             if resp.json().get('error'):
-                if "Rate limit" in resp.json().get('error') and resp.from_cache:
-                    return {"cached":True, **resp.from_cache.json()}
-                else:
-                    raise PGApiError(resp.json().get('error'))
+                print(resp.from_cache)
+                raise PGApiError(resp.json().get('error'))
             else:
                 raise HTTPError(f"Request to {self.API_URL} failed (HTTP {resp.status_code})\nBody: {resp.text}")
 
@@ -67,6 +67,7 @@ class PGAPI:
 class Player(PGAPI):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.rate_limit_seconds = 300
         self.API_URL = f'https://{PGAPI.API_SERVER}/api/v1/player/public/my_profile'
         self.data = kwargs.get('data') or self.fetch() if self.autofetch==True else None
 
@@ -169,4 +170,5 @@ class AtlasTroopCount(PGAPI):
 
         self.API_URL = f'https://{PGAPI.API_SERVER}/api/v1/atlas/team/troop_count'
         self.params = {}
+        self.rate_limit_seconds = 600
         self.data = self.fetch() if self.autofetch==True else None

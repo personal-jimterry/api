@@ -4,13 +4,10 @@ from api import *
 
 api_key = os.environ.get('PG_API_KEY') or 'apikey-xxxxxxx'
 
-
-
 class TestApi(unittest.TestCase):
     def test_invalid_token(self):
         with self.assertRaises(PGApiError):
             result = Player(api_key='123')
-            print(result)
 
     def test_apikey_missing(self):
         with self.assertRaises(ValueError):
@@ -19,6 +16,9 @@ class TestApi(unittest.TestCase):
     def test_player(self):
         result = Player(api_key=api_key)
         self.assertIn('pgid', result.data)
+        result = Player(api_key=api_key)
+        self.assertIn('pgid', result.data)
+        self.assertEqual(result.data.get('cached'),True)
 
     def test_castleinfo(self):
         with self.assertRaises(ValueError):
@@ -30,7 +30,6 @@ class TestApi(unittest.TestCase):
 
     def test_troopcount(self):
     	result = AtlasTroopCount(api_key=api_key)
-    	print(result.data)
     	self.assertIn("timestamp", result.data)
     	self.assertIn("troop_count", result.data)
 
