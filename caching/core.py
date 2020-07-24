@@ -117,7 +117,7 @@ class CachedSession(OriginalSession):
 
 
         if datetime.utcnow() > expires:
-            print(f"cache miss by {datetime.utcnow()-expires}s")
+            #print(f"cache miss by {datetime.utcnow()-expires}s")
             if not self._return_old_data_on_error:
                 self.cache.delete(cache_key)
                 return send_request_and_cache_response()
@@ -131,7 +131,7 @@ class CachedSession(OriginalSession):
                 return new_response
 
         # dispatch hook here, because we've removed it before pickling
-        print(f"cache hit, {expires-datetime.utcnow()}s remaining")
+        #print(f"cache hit, {expires-datetime.utcnow()}s remaining")
         response.from_cache = True
         response = dispatch_hook('response', request.hooks, response, **kwargs)
         return response
