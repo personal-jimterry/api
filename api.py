@@ -124,6 +124,7 @@ class AtlasContribution(PGAPI):
         for player in self.data['entries']:
             setattr(self, player['for_name'], player['stats'])
 
+
 class AtlasTeamsMetadata(PGAPI):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -140,8 +141,8 @@ class AtlasTeam(PGAPI):
         self.API_URL = f'https://{PGAPI.API_SERVER}/api/v1/atlas/teams/metadata'
         self.params = {'k_id':1, 'realm_name':'Celestial_Haven'}
         self.rate_limit_seconds = 60
-        if kwargs.get('team_name'):
-            self.params['team_name'] = kwargs.get('team_name')
+        if kwargs.get('teams'):
+            self.params['teams'] = json.dumps(kwargs.get('teams'))
         self.data = self.fetch() if self.autofetch==True else None
 
 
@@ -186,11 +187,12 @@ class AtlasAlliance(PGAPI):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        self.API_URL = f'https://{PGAPI.API_SERVER}/api/v1/atlas/alliance/member'
+        self.API_URL = f'https://{PGAPI.API_SERVER}/api/v1/atlas/alliance/teams'
         self.params = {}
         self.rate_limit_seconds = 3600
         self.data = self.fetch() if self.autofetch==True else None
-       
+
+
 class AtlasEventScore(PGAPI): 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

@@ -44,8 +44,9 @@ class TestApi(unittest.TestCase):
     def test_AtlasTeam(self):
         with self.assertRaises(PGApiError):
             result = AtlasTeam(api_key=api_key)
-        result = AtlasTeam(api_key=api_key, team_name='DREADNOUGHT')
-        self.assertIn("power_rank", result.data)
+        result = AtlasTeam(api_key=api_key, teams=['DREADNOUGHT', 'EquiIibrium'])
+        self.assertIn("DREADNOUGHT", result.data)
+        self.assertIn("EquiIibrium", result.data)
 
     def test_AtlasBattles(self):
         result = AtlasBattles(api_key=api_key)
