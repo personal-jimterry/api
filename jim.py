@@ -39,7 +39,7 @@ def get_castle():
 	token_url = f'https://{PGAPI.AUTH_SERVER}/api/dev/retrieve_token?{urlencode(params, quote_via=quote_plus)}'
 	resp = requests.get(token_url)
 	resp_data = resp.json()
-	castle = CastleInfo(api_key=resp_data['api_key'], cont_ids=["1-A3244-0"])
+	castle = CastleInfo(api_key=resp_data['api_key'], cont_ids=["1-A3244-0"], old=True)
 	return castle
 
 

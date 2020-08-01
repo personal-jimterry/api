@@ -25,24 +25,28 @@ class PGAPI:
     CLIENT_SECRET = hostinfo.clientSecret #os.environ.get('PG_CLIENT_SECRET') or 'secret-xxxxxxxxxxxxxx'
     API_SERVER = AUTH_SERVER = 'api-dot-pgdragonsong.appspot.com'
 
-    def __init__(self, autofetch=True, **kwargs):
+    def __init__(self, autofetch=True, old=True, **kwargs):
         self.autofetch = autofetch
         self.params = None
         self.body = None
         self.rate_limit_seconds = 0
+        self.old = old
+        self.OLD_API_URL = None
         if 'api_key' in kwargs:
             self.api_key = kwargs.get('api_key')
         else:
             raise ValueError("API key missing")
 
-    def genHeaders(self):
+    def genHeaders(self,):
         now = datetime.utcnow()
         msg = ':'.join([PGAPI.CLIENT_SECRET, self.api_key, str(int(now.timestamp()))]).encode('utf-8')
         generated_signature = hashlib.sha256(msg).hexdigest()
-        return {'expires':str(int((now+timedelta(seconds=self.rate_limit_seconds)).timestamp())),'X-WarDragons-APIKey':self.api_key, 'X-WarDragons-Request-Timestamp': str(int(now.timestamp())), 'X-WarDragons-Signature':str(generated_signature)}
+        return hostinfo.headers if self.old else {'expires':str(int((now+timedelta(seconds=self.rate_limit_seconds)).timestamp())),'X-WarDragons-APIKey':self.api_key, 'X-WarDragons-Request-Timestamp': str(int(now.timestamp())), 'X-WarDragons-Signature':str(generated_signature)}
 
     def fetch(self):
-        resp = requests.get(self.API_URL, headers=self.genHeaders(), params=self.params)
+        working_url = self.API_URL if not (self.old and self.OLD_API_URL) else self.OLD_API_URL
+        resp = requests.get(working_url, headers=self.genHeaders(), params=self.params)
+        print(working_url, self.genHeaders(), self.params)
         if resp.status_code == 200:
             #return {"cached":resp.from_cache, **resp.json()}
             if isinstance(resp.json(), list):
@@ -53,17 +57,17 @@ class PGAPI:
             if resp.json().get('error'):
                 raise PGApiError(resp.json().get('error'))
             else:
-                raise HTTPError(f"Request to {self.API_URL} failed (HTTP {resp.status_code})\nBody: {resp.text}")
+                raise HTTPError(f"Request to {working_url} failed (HTTP {resp.status_code})\nBody: {resp.text}")
 
     def post(self):
         headers = self.genHeaders()
         headers['Content-Type'] = "application/json"
-
-        resp = requests.post(self.API_URL, headers=headers, data=self.body)
+        working_url = self.API_URL if not self.old else self.OLD_API_URL
+        resp = requests.post(working_url, headers=headers, data=self.body)
         if resp.status_code == 200:
             return resp.json()
         else:
-            raise HTTPError(f"Request to {self.API_URL} failed (HTTP {resp.status_code})\nBody: {resp.text}")
+            raise HTTPError(f"Request to {working_url} failed (HTTP {resp.status_code})\nBody: {resp.text}")
 
     def __str__(self):
         return json.dumps(self.data)
@@ -85,6 +89,7 @@ class CastleInfo(PGAPI):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.API_URL = f'https://{PGAPI.API_SERVER}/api/v1/castle_info'
+        self.OLD_API_URL = 'https://'+hostinfo.hostname+'/ext/dragonsong/world/area/get'
         self.query_cont_ids = kwargs.get('cont_ids')
         self.cont_ids = []
         self.rate_limit_seconds = 5
@@ -102,7 +107,7 @@ class CastleInfo(PGAPI):
 
                 self.cont_ids.append({**cont_id})
 
-        self.params = {'cont_ids': json.dumps(self.cont_ids)}        
+        self.params = {'cont_ids': json.dumps(self.cont_ids)} if not self.old else {'cont_ids': json.dumps(self.cont_ids), "session_token":hostinfo.session_token, "player_id":hostinfo.player_id, "drake_locs":hostinfo.drakeString}        
         self.data = self.fetch() if self.autofetch==True else None
 
 
