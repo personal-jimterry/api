@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+#!/usr/local/bin/pypy3
 
 import requests
 from api import PGAPI, Player, CastleInfo

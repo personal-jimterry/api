@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+#!/usr/local/bin/pypy3
 # -*- coding: UTF-8 -*-
 # Copyright 2020 by Faive
 # CC BY SA

@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+#!/usr/local/bin/pypy3
 # -*- coding: utf-8 -*-
 """
     requests_cache.backends.redis
