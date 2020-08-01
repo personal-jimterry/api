@@ -12,6 +12,7 @@ import re
 import os
 from datetime import datetime, timedelta
 from urllib.parse import quote
+import hostinfo
 
 
 caching.install_cache('pgapi_cache', backend='sqlite', always_include_get_headers=['X-WarDragons-APIKey'])
@@ -20,8 +21,8 @@ class PGApiError(Exception):
     pass
 
 class PGAPI:
-    CLIENT_ID = os.environ.get('PG_CLIENT_ID') or 'app-xxxxxxxxxxxxxxxx'
-    CLIENT_SECRET = os.environ.get('PG_CLIENT_SECRET') or 'secret-xxxxxxxxxxxxxx'
+    CLIENT_ID = hostinfo.clientID #os.environ.get('PG_CLIENT_ID') or 'app-xxxxxxxxxxxxxxxx'
+    CLIENT_SECRET = hostinfo.clientSecret #os.environ.get('PG_CLIENT_SECRET') or 'secret-xxxxxxxxxxxxxx'
     API_SERVER = AUTH_SERVER = 'api-dot-pgdragonsong.appspot.com'
 
     def __init__(self, autofetch=True, **kwargs):
@@ -57,6 +58,7 @@ class PGAPI:
     def post(self):
         headers = self.genHeaders()
         headers['Content-Type'] = "application/json"
+
         resp = requests.post(self.API_URL, headers=headers, data=self.body)
         if resp.status_code == 200:
             return resp.json()
