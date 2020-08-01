@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/local/bin/python
 # -*- coding: utf-8 -*-
 """
     requests_cache.backends
@@ -25,6 +25,7 @@ try:
     # Heroku doesn't allow the SQLite3 module to be installed
     from .sqlite import DbCache
     registry['sqlite'] = DbCache
+
 except ImportError:
     DbCache = None
 
