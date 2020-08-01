@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/local/bin/python
 # -*- coding: utf-8 -*-
 """
     requests_cache.core
@@ -11,6 +11,8 @@ from datetime import datetime, timedelta
 from operator import itemgetter
 
 import requests
+import time 
+
 from requests import Session as OriginalSession
 from requests.hooks import dispatch_hook
 
@@ -86,7 +88,7 @@ class CachedSession(OriginalSession):
         super(CachedSession, self).__init__()
 
     def send(self, request, **kwargs):
-        will_expire = request.headers.pop('expires')
+        will_expire = datetime.fromtimestamp(time.time() + 100)# request.headers.pop('expires')
 
         if (self._is_cache_disabled
             or request.method not in self._cache_allowable_methods):
@@ -107,7 +109,7 @@ class CachedSession(OriginalSession):
         if 1:
             response, timestamp, expires = self.cache.get_response_and_time(cache_key)
             if expires:
-                expires = datetime.fromtimestamp(int(expires))
+                expires = datetime.fromtimestamp(expires.timestamp())
         #except (ImportError, TypeError):
          #   print("foo")
          #∂∂∂∂∂   return send_request_and_cache_response()
