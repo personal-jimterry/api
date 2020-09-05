@@ -13,6 +13,8 @@ import os
 from datetime import datetime, timedelta
 from urllib.parse import quote
 import hostinfo
+import time
+from urllib.parse import urlencode, quote_plus
 
 
 caching.install_cache('pgapi_cache', backend='sqlite', always_include_get_headers=['X-WarDragons-APIKey'])
@@ -24,6 +26,7 @@ class PGAPI:
     CLIENT_ID = hostinfo.clientID #os.environ.get('PG_CLIENT_ID') or 'app-xxxxxxxxxxxxxxxx'
     CLIENT_SECRET = hostinfo.clientSecret #os.environ.get('PG_CLIENT_SECRET') or 'secret-xxxxxxxxxxxxxx'
     API_SERVER = AUTH_SERVER = 'api-dot-pgdragonsong.appspot.com'
+    TOKEN_FRESH_FOR = 115
 
     def __init__(self, autofetch=True, old=True, **kwargs):
         self.autofetch = autofetch
@@ -32,10 +35,33 @@ class PGAPI:
         self.rate_limit_seconds = 0
         self.old = old
         self.OLD_API_URL = None
+        self.token = None
+        self.token_time = 0
+        self.rate_limit_items = 0
         if 'api_key' in kwargs:
             self.api_key = kwargs.get('api_key')
         else:
-            raise ValueError("API key missing")
+            self.token = self.getToken()
+            if 'api_key' not in self.token:
+                raise ValueError("API key missing")
+            else:
+                self.api_key = self.token['api_key']
+
+    # can rotate between pool here
+    def getToken(self):
+        if time.time() - self.token_time < self.TOKEN_FRESH_FOR:
+            return self.token
+        player_id = hostinfo.player_id #request.args.get('player_id')
+        auth_code = hostinfo.appEmail + "|" + hostinfo.clientID
+        params = dict(auth_code=auth_code,
+            client_id=PGAPI.CLIENT_ID,
+            client_secret=PGAPI.CLIENT_SECRET)
+        token_url = f'https://{PGAPI.AUTH_SERVER}/api/dev/retrieve_token?{urlencode(params, quote_via=quote_plus)}'
+        resp = requests.get(token_url)
+        self.token = resp.json()
+        self.token_time = time.time()
+        return self.token
+
 
     def genHeaders(self,):
         now = datetime.utcnow()
@@ -44,6 +70,9 @@ class PGAPI:
         return hostinfo.headers if self.old else {'expires':str(int((now+timedelta(seconds=self.rate_limit_seconds)).timestamp())),'X-WarDragons-APIKey':self.api_key, 'X-WarDragons-Request-Timestamp': str(int(now.timestamp())), 'X-WarDragons-Signature':str(generated_signature)}
 
     def fetch(self):
+        if time.time() - self.token_time > self.TOKEN_FRESH_FOR:
+            self.token = getToken()
+            self.api_key = self.token['api_key']
         working_url = self.API_URL if not (self.old and self.OLD_API_URL) else self.OLD_API_URL
         resp = requests.get(working_url, headers=self.genHeaders(), params=self.params)
         print(working_url, self.genHeaders(), self.params)
@@ -179,6 +208,17 @@ class AtlasMonthlyKills(PGAPI):
             return
         self.data = self.post() if self.autofetch==True else None
 
+class AllAtlasMonthlyKills(PGAPI):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        self.API_URL = f'https://{PGAPI.API_SERVER}/api/v1/atlas/teams/monthly_kill_count'
+        self.rate_limit_seconds = 40
+        self.body = json.dumps({"teams":list((json.load(open("/Library/WebServer/CGI-Executables/map/map.json", "r")))['metadata']['teams'].keys())})
+        self.data = self.post() if self.autofetch==True else None
+
+
+
 
 class AtlasTroopCount(PGAPI):
     def __init__(self, **kwargs):
@@ -190,7 +230,7 @@ class AtlasTroopCount(PGAPI):
         self.data = self.fetch() if self.autofetch==True else None
 
 
-class AtlasAlliance(PGAPI):
+class AtlasAlliances(PGAPI):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 

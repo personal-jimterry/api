@@ -1,6 +1,7 @@
 #!/usr/local/bin/pypy3
 
 import requests
+import api
 from api import PGAPI, Player, CastleInfo
 from flask import Flask, redirect, request
 from urllib.parse import urlencode, quote_plus
@@ -39,10 +40,24 @@ def get_castle():
 	token_url = f'https://{PGAPI.AUTH_SERVER}/api/dev/retrieve_token?{urlencode(params, quote_via=quote_plus)}'
 	resp = requests.get(token_url)
 	resp_data = resp.json()
-	castle = CastleInfo(api_key=resp_data['api_key'], cont_ids=["1-A3244-0"], old=True)
+	castle = CastleInfo(api_key=resp_data['api_key'], cont_ids=["1-A3244-0"])
 	return castle
 
+def get_alliance():
+    """
+    player_id = hostinfo.player_id #request.args.get('player_id')
+    auth_code = hostinfo.appEmail + "|" + hostinfo.clientID
+    params = dict(auth_code=auth_code,
+        client_id=PGAPI.CLIENT_ID,
+        client_secret=PGAPI.CLIENT_SECRET)
+    token_url = f'https://{PGAPI.AUTH_SERVER}/api/dev/retrieve_token?{urlencode(params, quote_via=quote_plus)}'
+    resp = requests.get(token_url)
+    resp_data = resp.json()
+    """
+    alliance = api.AtlasAlliances(old=False)
+    return alliance
 
-print(get_castle())
+
+print(api.CastleInfo(old=False, cont_ids=["1-A3244-0"]))
 #print(login())
 #print(pglogin_callback())
