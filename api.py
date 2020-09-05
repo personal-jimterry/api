@@ -64,10 +64,11 @@ class PGAPI:
 
 
     def genHeaders(self,):
+
         now = datetime.utcnow()
         msg = ':'.join([PGAPI.CLIENT_SECRET, self.api_key, str(int(now.timestamp()))]).encode('utf-8')
         generated_signature = hashlib.sha256(msg).hexdigest()
-        return hostinfo.headers if self.old else {'expires':str(int((now+timedelta(seconds=self.rate_limit_seconds)).timestamp())),'X-WarDragons-APIKey':self.api_key, 'X-WarDragons-Request-Timestamp': str(int(now.timestamp())), 'X-WarDragons-Signature':str(generated_signature)}
+        return hostinfo.reduced_headers if self.old else {'expires':str(int((now+timedelta(seconds=self.rate_limit_seconds)).timestamp())),'X-WarDragons-APIKey':self.api_key, 'X-WarDragons-Request-Timestamp': str(int(now.timestamp())), 'X-WarDragons-Signature':str(generated_signature)}
 
     def fetch(self):
         if time.time() - self.token_time > self.TOKEN_FRESH_FOR:
