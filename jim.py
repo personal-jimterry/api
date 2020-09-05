@@ -6,6 +6,9 @@ from api import PGAPI, Player, CastleInfo
 from flask import Flask, redirect, request
 from urllib.parse import urlencode, quote_plus
 import hostinfo
+import plot.mymongo as mymongo
+import json
+from bson.json_util import dumps
 
 def index():
     return "<a href='/login'>Login via official War Dragons API</a>"
@@ -43,11 +46,11 @@ def get_castle():
     params = dict(auth_code=auth_code,
     	client_id=PGAPI.CLIENT_ID,
     	client_secret=PGAPI.CLIENT_SECRET)
-	token_url = f'https://{PGAPI.AUTH_SERVER}/api/dev/retrieve_token?{urlencode(params, quote_via=quote_plus)}'
-	resp = requests.get(token_url)
-	resp_data = resp.json()
-	castle = CastleInfo(api_key=resp_data['api_key'], cont_ids=["1-A3244-0"], old=True)
-	return castle
+    token_url = f'https://{PGAPI.AUTH_SERVER}/api/dev/retrieve_token?{urlencode(params, quote_via=quote_plus)}'
+    resp = requests.get(token_url)
+    resp_data = resp.json()
+    castle = CastleInfo(api_key=resp_data['api_key'], cont_ids=["1-A3244-0"], old=True)
+    return castle
 
 def get_alliance():
     """
@@ -64,10 +67,18 @@ def get_alliance():
     return alliance
 
 
-print(api.CastleInfo(old=False, cont_ids=["1-A3244-0"]))
+#print(api.CastleInfo(old=False, cont_ids=["1-A3244-0"]))
+db = mymongo.getClient()
+api = json.loads(dumps(db["wd"]["api"].find({})))
+clientID = [e['value'] for e in api if e['type']=="client_id"][0]
+clientSecret = [e['value'] for e in api if e['type']=="client_secret"][0]
+auth_codes = [e['value'] +"|" + clientID for e in api if e['type']=="api_key"]
+castle = CastleInfo(api_key=auth_codes[1], cont_ids=["1-A3244-0"], old=False)
+print(castle)
 
 
-print(get_castle())
+
+#print(get_castle())
 #print(get_castle())
 #print(login())
 #print(pglogin_callback())

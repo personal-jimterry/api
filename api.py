@@ -28,6 +28,21 @@ class PGAPI:
     API_SERVER = AUTH_SERVER = 'api-dot-pgdragonsong.appspot.com'
     TOKEN_FRESH_FOR = 115
 
+    # can rotate between pool here
+    def getToken(self):
+        if time.time() - self.token_time < self.TOKEN_FRESH_FOR:
+            return self.token
+        player_id = hostinfo.player_id #request.args.get('player_id')
+        auth_code = hostinfo.appEmail + "|" + hostinfo.clientID
+        params = dict(auth_code=auth_code,
+            client_id=PGAPI.CLIENT_ID,
+            client_secret=PGAPI.CLIENT_SECRET)
+        token_url = f'https://{PGAPI.AUTH_SERVER}/api/dev/retrieve_token?{urlencode(params, quote_via=quote_plus)}'
+        resp = requests.get(token_url)
+        self.token = resp.json()
+        self.token_time = time.time()
+        return self.token
+
     def __init__(self, autofetch=True, old=True, **kwargs):
         self.autofetch = autofetch
         self.params = None
@@ -47,20 +62,7 @@ class PGAPI:
             else:
                 self.api_key = self.token['api_key']
 
-    # can rotate between pool here
-    def getToken(self):
-        if time.time() - self.token_time < self.TOKEN_FRESH_FOR:
-            return self.token
-        player_id = hostinfo.player_id #request.args.get('player_id')
-        auth_code = hostinfo.appEmail + "|" + hostinfo.clientID
-        params = dict(auth_code=auth_code,
-            client_id=PGAPI.CLIENT_ID,
-            client_secret=PGAPI.CLIENT_SECRET)
-        token_url = f'https://{PGAPI.AUTH_SERVER}/api/dev/retrieve_token?{urlencode(params, quote_via=quote_plus)}'
-        resp = requests.get(token_url)
-        self.token = resp.json()
-        self.token_time = time.time()
-        return self.token
+    
 
 
     def genHeaders(self,):
@@ -72,7 +74,7 @@ class PGAPI:
 
     def fetch(self):
         if time.time() - self.token_time > self.TOKEN_FRESH_FOR:
-            self.token = getToken()
+            self.token = self.getToken()
             self.api_key = self.token['api_key']
         working_url = self.API_URL if not (self.old and self.OLD_API_URL) else self.OLD_API_URL
         resp = requests.get(working_url, headers=self.genHeaders(), params=self.params)
