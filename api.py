@@ -15,6 +15,8 @@ from urllib.parse import quote
 import hostinfo
 import time
 from urllib.parse import urlencode, quote_plus
+from concurrent.futures import ThreadPoolExecutor as PoolExecutor, wait, as_completed
+import util
 
 
 caching.install_cache('pgapi_cache', backend='sqlite', always_include_get_headers=['X-WarDragons-APIKey'])
@@ -32,7 +34,6 @@ class PGAPI:
     def getToken(self):
         if time.time() - self.token_time < self.TOKEN_FRESH_FOR:
             return self.token
-        player_id = hostinfo.player_id #request.args.get('player_id')
         auth_code = hostinfo.appEmail + "|" + hostinfo.clientID
         params = dict(auth_code=auth_code,
             client_id=PGAPI.CLIENT_ID,
@@ -53,7 +54,11 @@ class PGAPI:
         self.token = None
         self.token_time = 0
         self.rate_limit_items = 0
-        if 'api_key' in kwargs:
+        self.parallel = False
+
+        if 'api_keys' in kwargs:
+            self.api_keys = kwargs.get('api_keys')
+        elif 'api_key' in kwargs:
             self.api_key = kwargs.get('api_key')
         else:
             self.token = self.getToken()
@@ -65,20 +70,32 @@ class PGAPI:
     
 
 
-    def genHeaders(self,):
+    def genHeaders(self,api_key=None):
+        if not api_key:
+            api_key = self.api_key
 
         now = datetime.utcnow()
-        msg = ':'.join([PGAPI.CLIENT_SECRET, self.api_key, str(int(now.timestamp()))]).encode('utf-8')
+        msg = ':'.join([PGAPI.CLIENT_SECRET, api_key, str(int(now.timestamp()))]).encode('utf-8')
         generated_signature = hashlib.sha256(msg).hexdigest()
-        return hostinfo.reduced_headers if self.old else {'expires':str(int((now+timedelta(seconds=self.rate_limit_seconds)).timestamp())),'X-WarDragons-APIKey':self.api_key, 'X-WarDragons-Request-Timestamp': str(int(now.timestamp())), 'X-WarDragons-Signature':str(generated_signature)}
+        return hostinfo.reduced_headers if self.old else {'expires':str(int((now+timedelta(seconds=self.rate_limit_seconds)).timestamp())),'X-WarDragons-APIKey':api_key, 'X-WarDragons-Request-Timestamp': str(int(now.timestamp())), 'X-WarDragons-Signature':str(generated_signature)}
 
-    def fetch(self):
+    def fetch(self, headers=None, params=None, api_key=None):
+        if not api_key:
+            api_key = self.api_key
+        if not params:
+            params = self.params
+        """
         if time.time() - self.token_time > self.TOKEN_FRESH_FOR:
             self.token = self.getToken()
             self.api_key = self.token['api_key']
+        """
+        if headers==None:
+            headers = self.genHeaders(api_key=api_key)
         working_url = self.API_URL if not (self.old and self.OLD_API_URL) else self.OLD_API_URL
-        resp = requests.get(working_url, headers=self.genHeaders(), params=self.params)
-        print(working_url, self.genHeaders(), self.params)
+        print(headers)
+        resp = requests.get(working_url, headers=headers, params=self.params)
+
+        #print(working_url, self.genHeaders(), self.params)
         if resp.status_code == 200:
             #return {"cached":resp.from_cache, **resp.json()}
             if isinstance(resp.json(), list):
@@ -121,10 +138,11 @@ class CastleInfo(PGAPI):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.API_URL = f'https://{PGAPI.API_SERVER}/api/v1/castle_info'
-        self.OLD_API_URL = 'https://'+hostinfo.hostname+'/ext/dragonsong/world/area/get'
         self.query_cont_ids = kwargs.get('cont_ids')
         self.cont_ids = []
         self.rate_limit_seconds = 5
+        self.rate_limit_items = 28
+        self.parallel = True 
         if not self.query_cont_ids or type(self.query_cont_ids) != type([]):
             raise ValueError("Field <list of str or dict>'cont_ids' missing or not recognized")
 
@@ -139,8 +157,15 @@ class CastleInfo(PGAPI):
 
                 self.cont_ids.append({**cont_id})
 
-        self.params = {'cont_ids': json.dumps(self.cont_ids)} if not self.old else {'cont_ids': json.dumps(self.cont_ids), "session_token":hostinfo.session_token, "player_id":hostinfo.player_id, "drake_locs":hostinfo.drakeString}        
-        self.data = self.fetch() if self.autofetch==True else None
+        self.params = {'cont_ids': json.dumps(self.cont_ids)}
+        if self.autofetch==True:
+            def run_fn(data, worker):
+                return self.fetch(params=data, api_key=worker)
+            #print(self.api_keys)
+            results = util.run_on_items(run_fn, items=self.cont_ids, batch_size=self.rate_limit_items, rate_limit_time=self.rate_limit_seconds, workers=self.api_keys)
+            self.data = results 
+        else:
+            self.data = None
 
 
 class CastleMetadata(PGAPI):
