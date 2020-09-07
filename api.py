@@ -24,6 +24,34 @@ caching.install_cache('pgapi_cache', backend='sqlite', always_include_get_header
 class PGApiError(Exception):
     pass
 
+def classless_genHeaders(api_key, rate_limit_seconds):
+    CLIENT_SECRET = hostinfo.clientSecret
+    now = datetime.utcnow()
+    msg = ':'.join([CLIENT_SECRET, api_key, str(int(now.timestamp()))]).encode('utf-8')
+    generated_signature = hashlib.sha256(msg).hexdigest()
+    return {'expires':str(int((now+timedelta(seconds=rate_limit_seconds)).timestamp())),'X-WarDragons-APIKey':api_key, 'X-WarDragons-Request-Timestamp': str(int(now.timestamp())), 'X-WarDragons-Signature':str(generated_signature)}
+
+
+def classless_fetch(headers, params, api_key, url, rate_limit_seconds):
+    headers = classless_genHeaders(api_key)
+    #print("PARAMS", params)        
+    resp = requests.get(url, headers=headers, params=params)
+
+    #print(working_url, self.genHeaders(), self.params)
+    if resp.status_code == 200:
+
+        #return {"cached":resp.from_cache, **resp.json()}
+        if isinstance(resp.json(), list):
+            return {"cached":resp.from_cache, "data":resp.json()}
+        else:
+            return {"cached":resp.from_cache, **resp.json()}
+    else:
+        if resp.json().get('error'):
+            raise PGApiError(resp.json().get('error'))
+        else:
+            raise HTTPError(f"Request to {working_url} failed (HTTP {resp.status_code})\nBody: {resp.text}")
+
+
 class PGAPI:
     CLIENT_ID = hostinfo.clientID #os.environ.get('PG_CLIENT_ID') or 'app-xxxxxxxxxxxxxxxx'
     CLIENT_SECRET = hostinfo.clientSecret #os.environ.get('PG_CLIENT_SECRET') or 'secret-xxxxxxxxxxxxxx'
@@ -96,7 +124,7 @@ class PGAPI:
         if headers==None:
             headers = self.genHeaders(api_key=api_key)
         working_url = self.API_URL if not (self.old and self.OLD_API_URL) else self.OLD_API_URL
-        print("PARAMS", params)        
+        #print("PARAMS", params)        
         resp = requests.get(working_url, headers=headers, params=params)
 
         #print(working_url, self.genHeaders(), self.params)
@@ -124,9 +152,10 @@ class PGAPI:
         if not params:
             params = self.params
         def run_fn(data, worker):
+            instance_params = dict(params)
             if prefix:
-                params[prefix] = json.dumps(data)
-            return self.fetch(params=params, api_key=worker)
+                instance_params[prefix] = json.dumps(data)
+            return self.fetch(params=instance_params, api_key=worker)
         return util.run_on_items(run_fn, items=fetch_items, batch_size=self.rate_limit_items, rate_limit_time=self.rate_limit_seconds, workers=self.api_keys)
 
     def post(self):
@@ -141,6 +170,8 @@ class PGAPI:
 
     def __str__(self):
         return json.dumps(self.data)
+    def get_data(self):
+        return self.data
 
 
 ##### Personal API #####
