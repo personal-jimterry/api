@@ -31,6 +31,9 @@ class PGAPI:
     TOKEN_FRESH_FOR = 115
 
     # can rotate between pool here
+
+
+
     def getToken(self):
         if time.time() - self.token_time < self.TOKEN_FRESH_FOR:
             return self.token
@@ -108,6 +111,14 @@ class PGAPI:
             else:
                 raise HTTPError(f"Request to {working_url} failed (HTTP {resp.status_code})\nBody: {resp.text}")
 
+
+    
+
+    def parallel_fetch(self, fetch_items):
+        def run_fn(data, worker):
+            return self.fetch(params=data, api_key=worker)
+        return util.run_on_items(run_fn, items=fetch_items, batch_size=self.rate_limit_items, rate_limit_time=self.rate_limit_seconds, workers=self.api_keys)
+
     def post(self):
         headers = self.genHeaders()
         headers['Content-Type'] = "application/json"
@@ -159,10 +170,9 @@ class CastleInfo(PGAPI):
 
         self.params = {'cont_ids': json.dumps(self.cont_ids)}
         if self.autofetch==True:
-            def run_fn(data, worker):
-                return self.fetch(params=data, api_key=worker)
+            
             #print(self.api_keys)
-            results = util.run_on_items(run_fn, items=self.cont_ids, batch_size=self.rate_limit_items, rate_limit_time=self.rate_limit_seconds, workers=self.api_keys)
+            results = self.parallel_fetch(self.cont_ids)
             self.data = results 
         else:
             self.data = None
