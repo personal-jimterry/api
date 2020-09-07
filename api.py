@@ -87,6 +87,7 @@ class PGAPI:
             api_key = self.api_key
         if not params:
             params = self.params
+
         """
         if time.time() - self.token_time > self.TOKEN_FRESH_FOR:
             self.token = self.getToken()
@@ -95,11 +96,12 @@ class PGAPI:
         if headers==None:
             headers = self.genHeaders(api_key=api_key)
         working_url = self.API_URL if not (self.old and self.OLD_API_URL) else self.OLD_API_URL
-        print(headers)
-        resp = requests.get(working_url, headers=headers, params=self.params)
+        print("PARAMS", params)        
+        resp = requests.get(working_url, headers=headers, params=params)
 
         #print(working_url, self.genHeaders(), self.params)
         if resp.status_code == 200:
+
             #return {"cached":resp.from_cache, **resp.json()}
             if isinstance(resp.json(), list):
                 return {"cached":resp.from_cache, "data":resp.json()}
@@ -114,8 +116,14 @@ class PGAPI:
 
     
 
-    def parallel_fetch(self, fetch_items):
+    def parallel_fetch(self, fetch_items=None, prefix=None):
+        if not fetch_items:
+            fetch_items = self.items
+        if not prefix:
+            prefix = self.prefix
         def run_fn(data, worker):
+            if prefix:
+                data = json.dumps({prefix:data})
             return self.fetch(params=data, api_key=worker)
         return util.run_on_items(run_fn, items=fetch_items, batch_size=self.rate_limit_items, rate_limit_time=self.rate_limit_seconds, workers=self.api_keys)
 
@@ -161,18 +169,23 @@ class CastleInfo(PGAPI):
             if type(cont_id) == type(str()):
                 match = re.search('^1-(\w\d+)-(\d)', cont_id)
                 if match:
-                    self.cont_ids.append({'cont_idx':match.group(2), 'k_id':1, 'region_id': match.group(1)})
+                    self.cont_ids.append({'cont_idx':int(match.group(2)), 'k_id':1, 'region_id': match.group(1)})
                 else:
                     raise ValueError(f"Error parsing castle: <str>'{cont_id}'")
             elif type(cont_id) == type(dict()):
 
                 self.cont_ids.append({**cont_id})
 
-        self.params = {'cont_ids': json.dumps(self.cont_ids)}
+        self.items = self.cont_ids
+        self.params = {'cont_ids': self.cont_ids} #self.cont_ids #{'cont_ids': json.dumps(self.cont_ids)}
+        self.prefix = 'cont_ids'
         if self.autofetch==True:
             
             #print(self.api_keys)
-            results = self.parallel_fetch(self.cont_ids)
+           # def run_fn(data, worker):
+            #    return self.fetch(params=data, api_key=worker)
+           # results = util.run_on_items(run_fn, items=self.params, batch_size=self.rate_limit_items, rate_limit_time=self.rate_limit_seconds, workers=self.api_keys)
+            results = self.parallel_fetch()
             self.data = results 
         else:
             self.data = None
@@ -209,15 +222,20 @@ class AtlasTeamsMetadata(PGAPI):
 
 
 class AtlasTeam(PGAPI):
-    def __init__(self, **kwargs):
+
+    def __init__(self, teams, **kwargs):
         super().__init__(**kwargs)
+        self.params = teams
+        self.teams = teams
 
         self.API_URL = f'https://{PGAPI.API_SERVER}/api/v1/atlas/teams/metadata'
         self.params = {'k_id':1, 'realm_name':'Celestial_Haven'}
         self.rate_limit_seconds = 60
-        if kwargs.get('teams'):
-            self.params['teams'] = json.dumps(kwargs.get('teams'))
-        self.data = self.fetch() if self.autofetch==True else None
+        self.rate_limit_items = 100
+        #if kwargs.get('teams'):
+            #self.params['teams'] = json.dumps(kwargs.get('teams'))
+        self.params = teams
+        self.data = self.parallel_fetch() if self.autofetch==True else None
 
 
 class AtlasBattles(PGAPI):

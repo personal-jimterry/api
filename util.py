@@ -221,8 +221,6 @@ def run_on_items(run_fn, items, batch_size=0, rate_limit_time=0, rate_limit_item
 	else:
 		batches = items
 
-	print("HEY", workers)
-
 	n_batches = len(batches)
 	n_workers = len(workers)
 	time_per_request = max(rate_limit_time, total_time / max(n_batches - 1, 1))
@@ -232,7 +230,7 @@ def run_on_items(run_fn, items, batch_size=0, rate_limit_time=0, rate_limit_item
 		linear_results = []
 		for i, batch in enumerate(batches):
 			start_time = time.time()
-			print(i)
+			#print("yo: ", batch, worker, run_fn)
 			def fetch_batch():
 				batch_result = run_fn(batch) if worker == None else run_fn(data=batch, worker=worker)
 				return batch_result 
@@ -304,8 +302,8 @@ def tryN(fn, max_tries, exceptFn=sleepFn):
 	result = None
 	tries = 0
 	while tries < max_tries:
-		print(tries)
 		try:
+
 			result = fn()
 			print("success")
 			tries = max_tries
@@ -317,5 +315,5 @@ def tryN(fn, max_tries, exceptFn=sleepFn):
 				exceptFn(tries)
 			tries += 1
 			if tries >= max_tries:
-				raise("Problem")
+				exit()
 	return result

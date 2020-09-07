@@ -2,13 +2,15 @@
 
 import requests
 import api
-from api import PGAPI, Player, CastleInfo
+from api import PGAPI, Player, CastleInfo, AtlasTeam
 from flask import Flask, redirect, request
 from urllib.parse import urlencode, quote_plus
 import hostinfo
 import plot.mymongo as mymongo
 import json
 from bson.json_util import dumps
+import util
+
 
 def index():
     return "<a href='/login'>Login via official War Dragons API</a>"
@@ -73,9 +75,12 @@ api = json.loads(dumps(db["wd"]["api"].find({})))
 clientID = [e['value'] for e in api if e['type']=="client_id"][0]
 clientSecret = [e['value'] for e in api if e['type']=="client_secret"][0]
 auth_codes = [e['value'] for e in api if e['type']=="api_key"]
-#castle = CastleInfo(api_keys=[auth_codes[1]], cont_ids=["1-A3244-0"], old=False)
-castle = CastleInfo(api_keys=auth_codes, cont_ids=["1-A3244-0", "1-A3244-1", "1-A3244-2"], old=False)
+castle = CastleInfo(api_keys=[auth_codes[1]], cont_ids=["1-A3244-0"], old=False)
+#castle = CastleInfo(api_keys=auth_codes, cont_ids=["1-A3244-0", "1-A3244-1", "1-A3244-2"], old=False)
 print(castle)
+
+#teams = util.all_teams()
+#api_teams = AtlasTeam(api_keys=auth_codes, teams=["Strikers"])
 
 
 
