@@ -81,7 +81,7 @@ auth_codes = [e['value'] for e in api if e['type']=="api_key"]
 
 teams = util.all_teams()
 #print(teams)
-teams = ["Strikers"]
+#teams = ["Strikers", "ANGELSnDEM0NS"]
 
 api_teams = AtlasTeam(api_keys=auth_codes, teams=teams, old=False)
 
