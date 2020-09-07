@@ -75,12 +75,18 @@ api = json.loads(dumps(db["wd"]["api"].find({})))
 clientID = [e['value'] for e in api if e['type']=="client_id"][0]
 clientSecret = [e['value'] for e in api if e['type']=="client_secret"][0]
 auth_codes = [e['value'] for e in api if e['type']=="api_key"]
-castle = CastleInfo(api_keys=[auth_codes[1]], cont_ids=["1-A3244-0"], old=False)
+#castle = CastleInfo(api_keys=[auth_codes[1]], cont_ids=["1-A3244-0"], old=False)
 #castle = CastleInfo(api_keys=auth_codes, cont_ids=["1-A3244-0", "1-A3244-1", "1-A3244-2"], old=False)
-print(castle)
+#print(castle)
 
-#teams = util.all_teams()
-#api_teams = AtlasTeam(api_keys=auth_codes, teams=["Strikers"])
+teams = util.all_teams()
+#print(teams)
+teams = ["Strikers"]
+
+api_teams = AtlasTeam(api_keys=auth_codes, teams=teams, old=False)
+
+f = open("teams.json", "w")
+print(api_teams, file=f)
 
 
 

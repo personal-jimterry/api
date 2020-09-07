@@ -47,7 +47,7 @@ class PGAPI:
         self.token_time = time.time()
         return self.token
 
-    def __init__(self, autofetch=True, old=True, **kwargs):
+    def __init__(self, autofetch=True, old=False, **kwargs):
         self.autofetch = autofetch
         self.params = None
         self.body = None
@@ -116,15 +116,17 @@ class PGAPI:
 
     
 
-    def parallel_fetch(self, fetch_items=None, prefix=None):
+    def parallel_fetch(self, fetch_items=None, prefix=None, params=None):
         if not fetch_items:
             fetch_items = self.items
         if not prefix:
             prefix = self.prefix
+        if not params:
+            params = self.params
         def run_fn(data, worker):
             if prefix:
-                data = json.dumps({prefix:data})
-            return self.fetch(params=data, api_key=worker)
+                params[prefix] = json.dumps(data)
+            return self.fetch(params=params, api_key=worker)
         return util.run_on_items(run_fn, items=fetch_items, batch_size=self.rate_limit_items, rate_limit_time=self.rate_limit_seconds, workers=self.api_keys)
 
     def post(self):
@@ -177,7 +179,8 @@ class CastleInfo(PGAPI):
                 self.cont_ids.append({**cont_id})
 
         self.items = self.cont_ids
-        self.params = {'cont_ids': self.cont_ids} #self.cont_ids #{'cont_ids': json.dumps(self.cont_ids)}
+        #self.params = {'cont_ids': self.cont_ids} #self.cont_ids #{'cont_ids': json.dumps(self.cont_ids)}
+        self.params = {}
         self.prefix = 'cont_ids'
         if self.autofetch==True:
             
@@ -234,7 +237,9 @@ class AtlasTeam(PGAPI):
         self.rate_limit_items = 100
         #if kwargs.get('teams'):
             #self.params['teams'] = json.dumps(kwargs.get('teams'))
-        self.params = teams
+
+        self.items = teams
+        self.prefix = "teams"
         self.data = self.parallel_fetch() if self.autofetch==True else None
 
 
