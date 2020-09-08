@@ -164,7 +164,7 @@ class PGAPI:
             if prefix:
                 instance_params[prefix] = json.dumps(data)
             return self.fetch(params=instance_params, api_key=worker)
-        return util.run_on_items(run_fn, items=fetch_items, batch_size=self.rate_limit_items, rate_limit_time=self.rate_limit_seconds, workers=self.api_keys, caching_prefix=caching_prefix, cache_item_size=cache_item_size)
+        return util.run_on_items(run_fn, items=fetch_items, batch_size=self.rate_limit_items, rate_limit_time=self.rate_limit_seconds, max_pool=40, workers=self.api_keys, caching_prefix=caching_prefix, cache_item_size=cache_item_size)
 
     def post(self):
         headers = self.genHeaders()
