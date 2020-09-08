@@ -4,7 +4,7 @@
 # CC BY SA
 
 import requests
-import caching
+#import caching
 from requests.exceptions import HTTPError
 import hashlib
 import json
@@ -19,7 +19,7 @@ from concurrent.futures import ThreadPoolExecutor as PoolExecutor, wait, as_comp
 import util
 
 
-caching.install_cache('pgapi_cache', backend='sqlite', always_include_get_headers=['X-WarDragons-APIKey'])
+#caching.install_cache('pgapi_cache', backend='sqlite', always_include_get_headers=['X-WarDragons-APIKey'])
 
 class PGApiError(Exception):
     pass
