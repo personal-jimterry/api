@@ -77,7 +77,9 @@ clientSecret = [e['value'] for e in api if e['type']=="client_secret"][0]
 auth_codes = [e['value'] for e in api if e['type']=="api_key"]
 #castle = CastleInfo(api_keys=[auth_codes[1]], cont_ids=["1-A3244-0"], old=False)
 #castle = CastleInfo(api_keys=auth_codes, cont_ids=["1-A3244-0", "1-A3244-1", "1-A3244-2"], old=False)
-#print(castle)
+castle = CastleInfo(api_keys=auth_codes, cont_ids=[{"cont_idx":0, "k_id":1, "region_id":"A3244"}])
+print(castle)
+exit()
 
 teams = util.all_teams()
 #print(teams)
