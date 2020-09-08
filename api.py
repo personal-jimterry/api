@@ -22,8 +22,10 @@ import util
 #caching.install_cache('pgapi_cache', backend='sqlite', always_include_get_headers=['X-WarDragons-APIKey'])
 
 class PGApiError(Exception):
-    pass
+    def __init__(self,e):
+        self.error = e
 
+"""
 def classless_genHeaders(api_key, rate_limit_seconds):
     CLIENT_SECRET = hostinfo.clientSecret
     now = datetime.utcnow()
@@ -50,7 +52,7 @@ def classless_fetch(headers, params, api_key, url, rate_limit_seconds):
             raise PGApiError(resp.json().get('error'))
         else:
             raise HTTPError(f"Request to {working_url} failed (HTTP {resp.status_code})\nBody: {resp.text}")
-
+"""
 
 class PGAPI:
     CLIENT_ID = hostinfo.clientID #os.environ.get('PG_CLIENT_ID') or 'app-xxxxxxxxxxxxxxxx'
@@ -131,12 +133,18 @@ class PGAPI:
         if resp.status_code == 200:
 
             #return {"cached":resp.from_cache, **resp.json()}
+            return resp.json()
+            """
             if isinstance(resp.json(), list):
                 return {"cached":resp.from_cache, "data":resp.json()}
             else:
                 return {"cached":resp.from_cache, **resp.json()}
+            """
         else:
+            #print("resp", resp)
+            #print("content", resp.content)
             if resp.json().get('error'):
+                
                 raise PGApiError(resp.json().get('error'))
             else:
                 raise HTTPError(f"Request to {working_url} failed (HTTP {resp.status_code})\nBody: {resp.text}")
@@ -144,7 +152,7 @@ class PGAPI:
 
     
 
-    def parallel_fetch(self, fetch_items=None, prefix=None, params=None):
+    def parallel_fetch(self, fetch_items=None, prefix=None, params=None, caching_prefix=None, cache_item_size=0):
         if not fetch_items:
             fetch_items = self.items
         if not prefix:
@@ -156,7 +164,7 @@ class PGAPI:
             if prefix:
                 instance_params[prefix] = json.dumps(data)
             return self.fetch(params=instance_params, api_key=worker)
-        return util.run_on_items(run_fn, items=fetch_items, batch_size=self.rate_limit_items, rate_limit_time=self.rate_limit_seconds, workers=self.api_keys)
+        return util.run_on_items(run_fn, items=fetch_items, batch_size=self.rate_limit_items, rate_limit_time=self.rate_limit_seconds, max_pool=40, workers=self.api_keys, caching_prefix=caching_prefix, cache_item_size=cache_item_size)
 
     def post(self):
         headers = self.genHeaders()
@@ -193,8 +201,11 @@ class CastleInfo(PGAPI):
         self.query_cont_ids = kwargs.get('cont_ids')
         self.cont_ids = []
         self.rate_limit_seconds = 5
-        self.rate_limit_items = 28
+        self.rate_limit_items = 25
         self.parallel = True 
+        self.caching_prefix = kwargs.get('caching_prefix', None)
+        self.cache_item_size = kwargs.get('cache_item_size', 0)
+
         if not self.query_cont_ids or type(self.query_cont_ids) != type([]):
             raise ValueError("Field <list of str or dict>'cont_ids' missing or not recognized")
 
@@ -213,14 +224,15 @@ class CastleInfo(PGAPI):
         #self.params = {'cont_ids': self.cont_ids} #self.cont_ids #{'cont_ids': json.dumps(self.cont_ids)}
         self.params = {}
         self.prefix = 'cont_ids'
+
         if self.autofetch==True:
             
             #print(self.api_keys)
            # def run_fn(data, worker):
             #    return self.fetch(params=data, api_key=worker)
            # results = util.run_on_items(run_fn, items=self.params, batch_size=self.rate_limit_items, rate_limit_time=self.rate_limit_seconds, workers=self.api_keys)
-            results = self.parallel_fetch()
-            self.data = results 
+            self.data = self.parallel_fetch(caching_prefix=self.caching_prefix, cache_item_size=self.cache_item_size)
+            #self.data.pop("cached", None)
         else:
             self.data = None
 
@@ -272,6 +284,7 @@ class AtlasTeam(PGAPI):
         self.items = teams
         self.prefix = "teams"
         self.data = self.parallel_fetch() if self.autofetch==True else None
+        #self.data.pop("cached", None)
 
 
 class AtlasBattles(PGAPI):
