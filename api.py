@@ -293,7 +293,9 @@ class AtlasBattles(PGAPI):
 
         self.API_URL = f'https://{PGAPI.API_SERVER}/api/v1/atlas/team/battles'
         self.params = {}
-        self.rate_limit_seconds = 60
+        self.rate_limit_seconds = 1
+        self.rate_limit_items = 1
+
         if kwargs.get('cursor'):
             self.params['cursor'] = kwargs.get('cursor')
         self.data = self.fetch() if self.autofetch==True else None
